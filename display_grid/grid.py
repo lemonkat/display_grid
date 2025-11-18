@@ -4,6 +4,8 @@ The Grid class is the fundamental data structure for representing a character-ba
 display region, using NumPy arrays for efficient manipulation of characters,
 colors, and text attributes.
 """
+import typing
+
 import numpy as np
 
 import display_grid as dg
@@ -58,9 +60,9 @@ class Grid:
         self,
         *values: object,
         pos: tuple[int, int] = (0, 0),
-        fg: tuple[int, int, int] | None = None,
-        bg: tuple[int, int, int] | None = None,
-        attrs: int | None = None,
+        fg: typing.Optional[tuple[int, int, int]] = None,
+        bg: typing.Optional[tuple[int, int, int]] = None,
+        attrs: typing.Optional[int] = None,
         sep: str = " ",
     ) -> None:
         """Prints text to the grid, wrapping at the edges.
@@ -87,10 +89,10 @@ class Grid:
 
     def fill(
         self,
-        char: str | None = None,
-        fg: tuple[int, int, int] | None = None,
-        bg: tuple[int, int, int] | None = None,
-        attrs: int | None = None,
+        char: typing.Optional[str] = None,
+        fg: typing.Optional[tuple[int, int, int]] = None,
+        bg: typing.Optional[tuple[int, int, int]] = None,
+        attrs: typing.Optional[int] = None,
     ) -> None:
         """Fills the entire grid with a given character, color, and/or attribute.
 
