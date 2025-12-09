@@ -113,7 +113,7 @@ class Grid:
         if attrs is not None:
             self.attrs[...] = attrs
 
-    def stamp(self, name: str, i: int, j: int) -> None:
+    def stamp(self, name: str, i: int, j: int, ignore_space: bool = False) -> None:
         """Draws a pre-loaded graphic onto the grid.
 
         The graphic, identified by `name`, is retrieved from the `dg.GRAPHICS`
@@ -126,7 +126,10 @@ class Grid:
             j: The left column for the graphic's position.
         """
         arr = dg.GRAPHICS[name]
-        self.chars[i: i + arr.shape[0], j: j + arr.shape[1]] = arr
+        if ignore_space:
+            self.chars[i: i + arr.shape[0], j: j + arr.shape[1]][arr != ord(" ")] = arr[arr != ord(" ")]
+        else:
+            self.chars[i: i + arr.shape[0], j: j + arr.shape[1]] = arr
     
     def draw(self) -> None:
         """Updates the physical screen with the contents of this Grid.

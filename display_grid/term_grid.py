@@ -4,6 +4,7 @@ It uses the `urwid` library as a backend to handle terminal control codes,
 mouse tracking, and color rendering.
 """
 import typing
+import unicodedata
 
 import numpy as np
 import urwid
@@ -132,8 +133,11 @@ class TermGrid(dg.Grid):
     def draw(self) -> None:
         """Renders the grid's contents to the terminal screen."""
         markup = []
-        for (chars, fg, bg, attrs) in zip(self.chars, self.fg, self.bg, self.attrs):
-            markup.extend(zip(map(_get_text_attr, fg, bg, attrs), map(chr, chars)))
+        for chars, fg, bg, attrs in zip(self.chars, self.fg, self.bg, self.attrs):
+            i = 0
+            while i < len(chars):
+                markup.append((_get_text_attr(fg[i], bg[i], attrs[i]), chr(chars[i])))
+                i += 2 if unicodedata.east_asian_width(chr(chars[i])) in "WF" else 1
             markup.append("\n")
         self.scr.draw_screen(self.shape[::-1], urwid.Text(markup[:-1], wrap="clip").render(self.shape[1:]) )
 
