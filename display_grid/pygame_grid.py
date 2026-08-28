@@ -91,9 +91,12 @@ class PygameGrid(dg.Grid):
         if font is None:
             font = pg.font.SysFont(name=font_name, size=font_size)
 
-        min_x, _, min_y, _, advance = font.metrics("█")[0]
-        min_y -= font.get_descent() - 1
-        return min_x, min_y, min_x + advance, min_y + font.get_linesize()
+        arr = pg.surfarray.array_red(font.render("█", False, [1, 0, 0], [0, 0, 0])) > 0
+        min_x = np.argmax(np.any(arr, axis=0))
+        min_y = np.argmax(np.any(arr, axis=1))
+        max_x = arr.shape[0] - np.argmax(np.any(arr[::-1], axis=0))
+        max_y = arr.shape[1] - np.argmax(np.any(arr[:, ::-1], axis=1))
+        return min_x, min_y, max_x, max_y
 
     @classmethod
     def get_surf_shape(
@@ -156,7 +159,6 @@ class PygameGrid(dg.Grid):
                     fg, bg = bg, fg
 
                 surf = self.font.render(text, True, fg)
-                surf.subsurface(min_x, min_y, surf.get_width(), surf.get_height())
                 blits.append((surf, (font_w * j, font_h * i)))
                 self.surf.fill(bg, (font_w * j, font_h * i, font_w * len(text), font_h))
                 
