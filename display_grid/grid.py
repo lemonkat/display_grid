@@ -5,6 +5,7 @@ display region, using NumPy arrays for efficient manipulation of characters,
 colors, and text attributes.
 """
 import typing
+import contextlib
 
 import numpy as np
 
@@ -46,7 +47,6 @@ class Grid:
         self.colors, self.chars, self.attrs = colors, chars, attrs
         self.offset = 0, 0
         self.fg, self.bg = self.colors[:, :, 0], self.colors[:, :, 1]
-        self.clear()
 
     def clear(self) -> None:
         """Resets the grid to a default state.
@@ -162,6 +162,23 @@ class Grid:
         """
         return []
 
+    @classmethod
+    @contextlib.contextmanager
+    def create(cls, shape: tuple[int, int]) -> typing.Generator[typing.Self, None, None]:
+        """Creates a grid of this type and performs any necessary cleanup afterward.
+
+        Args:
+            shape: a tuple (rows, cols) for the shape of the resulting Grid.
+
+        Yields:
+            A new Grid object.
+        """
+        yield Grid(
+            np.full((*shape, 2, 3), 255, dtype=np.uint8),
+            np.full(shape, ord(" "), dtype=np.int32),
+            np.full(shape, dg.TA_NONE, dtype=np.uint8),
+        )
+
 
 class SubGrid(Grid):
     """A SubGrid is a view into a rectangular sub-region of another Grid.
@@ -192,3 +209,22 @@ class SubGrid(Grid):
     def draw(self) -> None:
         """Updates the screen by calling the parent's draw method."""
         self.parent.draw()
+
+    @classmethod
+    @contextlib.contextmanager
+    def create(cls, parent: Grid, i1: int, j1: int, i2: int, j2: int) -> typing.Generator[typing.Self, None, None]:
+        """Creates a grid of this type and performs any necessary cleanup afterward.
+
+        This is identical to calling the SubGrid constructor.
+
+        Args:
+            parent: The parent Grid object.
+            i1: The top row of the sub-region.
+            j1: The left column of the sub-region.
+            i2: The bottom row (exclusive) of the sub-region.
+            j2: The right column (exclusive) of the sub-region.
+
+        Yields:
+            A new SubGrid object.
+        """
+        yield SubGrid(parent, i1, j1, i2, j2)

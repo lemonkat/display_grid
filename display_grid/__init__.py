@@ -53,6 +53,7 @@ try:
 
 except ImportError:
     pass
+
 try:
     from display_grid import pygame_grid
     from display_grid.pygame_grid import PygameGrid

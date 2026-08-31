@@ -1,16 +1,21 @@
 """This module provides a Grid implementation for Pygame-based applications.
 
 It uses a `pygame.Surface` as a canvas, rendering characters and colors
-using a specified system font.
+using a specified font (either a system font name or a file path).
 """
+
+import os
+
 import time
 import itertools
 import typing
+import contextlib
 
 import numpy as np
 import pygame as pg
 
 import display_grid as dg
+
 
 BLINK_RATE = 1
 
@@ -25,6 +30,18 @@ KEY_MAP = {
     "KEY_RETURN": "\n",
     "KEY_TAB": "\t",
 }
+
+def _get_font(font: str, size: int) -> pg.font.Font:
+    """Creates a Font object using either the system fonts or a file.
+
+    Args:
+        font (str): The system name or file path of the font.
+        size (int): The point size of the font.
+    """
+    if font in pg.font.get_fonts():
+        return pg.font.SysFont(font, size)
+    elif os.path.exists(font):
+        return pg.font.Font(font, size)
 
 class PygameGrid(dg.Grid):
     """A Grid that displays its contents in a `pygame.Surface`.
@@ -51,14 +68,14 @@ class PygameGrid(dg.Grid):
         
         Args:
             surf: The `pygame.Surface` to draw on.
-            font: The name of the system font to use.
+            font: The name or file path of the font to use.
             font_size: The point size of the font.
             shape: A (rows, cols) tuple for the grid's shape. If None, it
                 is calculated based on the surface and font size.
         """
         self.surf = surf
 
-        self.font = pg.font.SysFont(font, font_size)
+        self.font = _get_font(font, font_size)
 
         if shape is None:
             shape = self.get_real_shape()
@@ -89,8 +106,7 @@ class PygameGrid(dg.Grid):
         """
 
         if font is None:
-            font = pg.font.SysFont(name=font_name, size=font_size)
-
+            font = _get_font(font_name, font_size)
         arr = pg.surfarray.array_red(font.render("█", False, [1, 0, 0], [0, 0, 0])) > 0
         min_x = np.argmax(np.any(arr, axis=0))
         min_y = np.argmax(np.any(arr, axis=1))
@@ -109,7 +125,7 @@ class PygameGrid(dg.Grid):
         
         Args:
             shape: The (rows, cols) of the grid.
-            font_name: The name of the font to be used.
+            font_name: The name or file path of the font to be used.
             font_size: The size of the font to be used.
 
         Returns:
@@ -205,3 +221,35 @@ class PygameGrid(dg.Grid):
                 j = event.pos[0] // font_w
                 out.append(dg.MouseEvent(event.button, False, (i, j), mod))
         return out
+
+    @classmethod
+    @contextlib.contextmanager
+    def create(
+        cls,
+        shape: tuple[int, int],
+        font: str = DEFAULT_FONT,
+        font_size: int = 24,
+    ) -> typing.Generator[typing.Self, None, None]:
+        """Creates a grid of this type and performs any necessary cleanup afterward.
+
+        This creates and manages the lifetime of the Pygame window.
+
+        Args:
+            shape: A (rows, cols) tuple for the grid's shape.
+            font: The name or file path of the font to use.
+            font_size: The point size of the font.
+            
+        Yields:
+            A new PygameGrid object.
+        """
+        try:
+            pg.init()
+            scr = pg.display.set_mode(cls.get_surf_shape(shape, font, font_size))
+            yield dg.PygameGrid(
+                scr,
+                font, 
+                font_size, 
+                shape,
+            )
+        finally:
+            pg.quit()

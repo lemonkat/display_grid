@@ -18,11 +18,11 @@ def test_grid_init(sample_grid):
     """Tests the Grid constructor and initial state."""
     assert sample_grid.shape == (10, 20)
     assert sample_grid.offset == (0, 0)
-    # __init__ calls clear(), which calls fill().
-    assert np.all(sample_grid.chars == ord(" "))
-    assert np.all(sample_grid.fg == 255)
+    # __init__ does not call clear(); arrays retain their initial values.
+    assert np.all(sample_grid.chars == 0)
+    assert np.all(sample_grid.fg == 0)
     assert np.all(sample_grid.bg == 0)
-    assert np.all(sample_grid.attrs == dg.TA_NONE)
+    assert np.all(sample_grid.attrs == 0)
 
 def test_grid_clear(sample_grid):
     """Tests the clear() method."""
@@ -128,3 +128,24 @@ def test_base_grid_methods(sample_grid):
     assert sample_grid.events() == []
     # draw() returns None, nothing to assert
     sample_grid.draw()
+
+
+def test_grid_create():
+    """Tests the Grid.create context manager."""
+    with dg.Grid.create((10, 20)) as grid:
+        assert isinstance(grid, dg.Grid)
+        assert grid.shape == (10, 20)
+        # create() initializes with white fg, black bg, spaces, and no attrs.
+        assert np.all(grid.chars == ord(" "))
+        assert np.all(grid.fg == 255)
+        assert np.all(grid.bg == 255)
+        assert np.all(grid.attrs == dg.TA_NONE)
+
+
+def test_subgrid_create(sample_grid):
+    """Tests the SubGrid.create context manager."""
+    with dg.SubGrid.create(sample_grid, 1, 2, 5, 10) as subgrid:
+        assert isinstance(subgrid, dg.SubGrid)
+        assert subgrid.shape == (4, 8)
+        assert subgrid.offset == (1, 2)
+        assert subgrid.parent is sample_grid

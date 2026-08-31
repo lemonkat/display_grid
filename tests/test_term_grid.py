@@ -80,3 +80,20 @@ def test_term_grid_events_mouse(mock_urwid_screen):
     assert events[1].state is False
     assert events[1].pos == (15, 20)
     assert events[1].mod == dg.KM_CTRL
+
+
+def test_term_grid_create(mocker):
+    """Tests the TermGrid.create context manager."""
+    mock_screen = mocker.Mock()
+    mock_screen.get_cols_rows.return_value = (80, 24)
+    mock_screen.get_input.return_value = []
+
+    mocker.patch("urwid.display.raw.Screen", return_value=mock_screen)
+
+    with dg.TermGrid.create((24, 80)) as grid:
+        assert isinstance(grid, dg.TermGrid)
+        assert grid.shape == (24, 80)
+        mock_screen.start.assert_called_once()
+        mock_screen.set_input_timeouts.assert_called_once_with(max_wait=0)
+
+    mock_screen.stop.assert_called_once()

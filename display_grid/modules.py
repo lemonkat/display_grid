@@ -7,12 +7,8 @@ elements like buttons, text input, and FPS meters are also included.
 """
 import time
 import typing
-import io
-import contextlib
 
 import numpy as np
-import pygame as pg
-import urwid
 
 import display_grid as dg
 
@@ -58,21 +54,20 @@ class Module:
 
         self.parent = parent
         if parent:
-            
-            if box is None:
-                box = 0, 0, *parent.shape
-            self.grid = dg.SubGrid(parent.grid, *box)
+            self.grid = parent.grid if box is None else dg.SubGrid(parent.grid, *box)
             parent.submodules.append(self)
         else:
-            if box is None:
-                box = 0, 0, *grid.shape
-            self.grid = dg.SubGrid(grid, *box)
-        
+            self.grid = grid if box is None else dg.SubGrid(grid, *box)
+
+
         self.submodules: list[M] = []
         self.paused = False
         self.shape = self.grid.shape
         bound = self.parent.shape if parent else self.shape
-        self.box = box[0] % bound[0], box[1] % bound[1], box[2] % bound[0], box[3] % bound[1]
+        if box is None:
+            self.box = 0, 0, *self.shape
+        else:
+            self.box = box[0] % bound[0], box[1] % bound[1], box[2] % bound[0], box[3] % bound[1]
 
     def start(self) -> None:
         """Activates the module, allowing it to be drawn and updated."""
@@ -149,55 +144,54 @@ class Module:
 class MainModule(Module):
     """The root module for an application.
     
-    This module initializes the display backend (terminal or Pygame) and serves
-    as the main entry point for the application's lifecycle (tick, draw, events).
-    It can also enforce a specific window size.
+    This module serves as the main entry point for the application's lifecycle
+    (tick, draw, events). It can also enforce a specific window size. Display
+    backend setup is handled by the Grid subclass's ``create`` classmethod.
     """
     def __init__(
         self, 
-        shape: tuple[int, int] = (24, 80), 
+        grid: dg.Grid,
         enforce_shape: bool = True, 
-        mode: str = typing.Literal["terminal", "pygame"],
     ) -> None:
         """Constructs the MainModule.
 
         Args:
-            shape: The desired (rows, cols) shape of the grid.
+            grid: The Grid object to display on.
             enforce_shape: If True, displays a warning if the window size does
                 not match `shape` and pauses updates.
-            mode: The backend to use, either "terminal" or "pygame".
         """
-        super().__init__(
-            grid=dg.Grid(
-                np.zeros((*shape, 2, 3), dtype=np.uint8), 
-                np.zeros(shape, dtype=np.int32),
-                np.zeros(shape, dtype=np.uint8),
-            ),
-        )
-        self.mode = mode
+        super().__init__(grid=grid)
+        self.grid.clear()
         self.enforce_shape = enforce_shape
-        self.printed = io.StringIO()
-    
-    def _draw(self) -> None:
-        """Draws the grid, or a warning if the window shape is incorrect."""
+
+    def draw(self) -> None:
+        """Draws this module and its submodules to the grid, clearing the grid first.
+        
+        The module's own `_draw` method is called first, followed by the `draw`
+        method of each of its submodules.
+        """
+
+        self.grid.clear()
         real_shape = self.grid.get_real_shape()
         if self.enforce_shape and real_shape != self.shape:
-            backup_colors = self.grid.colors.copy()
-            backup_chars = self.grid.chars.copy()
-            backup_attrs = self.grid.attrs.copy()
-
             self.grid.clear()
             self.grid.chars[:] = ord("█")
             self.grid.chars[1:-1, 2:-2] = ord(" ")
             
-            self.grid.print(f"Please ensure the window size is {self.shape[0]}x{self.shape[1]}.", (2, 4), (255, 255, 0), (0, 0, 0))
-            self.grid.print(f"The current window size is {real_shape[0]}x{real_shape[1]}.", (3, 4), (255, 255, 0), (0, 0, 0))
+            self.grid.print(
+                f"Please ensure the window size is {self.shape[0]}x{self.shape[1]}.", pos=(2, 4), 
+                fg=(255, 255, 0), 
+                bg=(0, 0, 0),
+            )
+            self.grid.print(
+                f"The current window size is {real_shape[0]}x{real_shape[1]}.", 
+                pos=(3, 4), 
+                fg=(255, 255, 0), 
+                bg=(0, 0, 0),
+            )
             self.grid.draw()
-
-            self.grid.colors[:] = backup_colors
-            self.grid.chars[:] = backup_chars
-            self.grid.attrs[:] = backup_attrs
         else:
+            super().draw()
             self.grid.draw()
             
     def _tick(self) -> None:
@@ -208,34 +202,6 @@ class MainModule(Module):
         else:
             self.grid.events()
 
-    def __enter__(self) -> 'MainModule':
-        """Initializes the display backend when entering a `with` block."""
-        if self.mode == "terminal":
-            self.printed = contextlib.redirect_stdout(self.printed).__enter__()
-            scr = urwid.display.raw.Screen()
-            scr.start()
-            scr.set_input_timeouts(max_wait=0)
-            scr.set_mouse_tracking()
-            self.grid = dg.TermGrid(scr, self.shape)
-
-            
-        elif self.mode == "pygame":
-            pg.init()
-            self.grid = dg.PygameGrid(pg.display.set_mode(dg.PygameGrid.get_surf_shape(self.shape)))
-                
-        return self
-
-    def __exit__(
-        self, 
-        exc_type: typing.Optional[type[BaseException]], 
-        exc_value: typing.Optional[BaseException], 
-        traceback: typing.Optional[typing.Any],
-    ) -> None:
-        """Cleans up the display backend when exiting a `with` block."""
-        if self.mode == "terminal":
-            self.grid.scr.stop()
-        elif self.mode == "pygame":
-            pg.quit()
 
 class ArrayDrawModule(Module):
     """A module for displaying a NumPy array of RGB data as colored blocks."""

@@ -5,6 +5,7 @@ mouse tracking, and color rendering.
 """
 import typing
 import unicodedata
+import contextlib
 
 import numpy as np
 import urwid
@@ -128,7 +129,7 @@ class TermGrid(dg.Grid):
         chars = np.empty(shape, dtype=np.int32)
         attrs = np.empty(shape, dtype=np.uint8)
 
-        super().__init__(colors, chars, attrs)    
+        super().__init__(colors, chars, attrs)   
 
     def draw(self) -> None:
         """Renders the grid's contents to the terminal screen."""
@@ -165,3 +166,28 @@ class TermGrid(dg.Grid):
                 mod, action = _split_mod_event(action)
                 out.append(dg.MouseEvent(button, "press" in action, (y, x), mod))
         return out
+
+    @classmethod
+    @contextlib.contextmanager
+    def create(
+        cls,
+        shape: tuple[int, int],
+    ) -> typing.Generator[typing.Self, None, None]:
+        """Creates a grid of this type and performs any necessary cleanup afterward.
+
+        This creates and manages the lifetime of the Urwid screen.
+
+        Args:
+            shape: A (rows, cols) tuple for the grid's shape.
+            
+        Yields:
+            A new TermGrid object.
+        """
+        try:
+            scr = urwid.display.raw.Screen()
+            scr.start()
+            scr.set_input_timeouts(max_wait=0)
+            scr.set_mouse_tracking()
+            yield dg.TermGrid(scr, shape)
+        finally:
+            scr.stop()

@@ -54,9 +54,9 @@ def child_module(root_module):
 # --- Module Tests ---
 
 def test_module_init_root(root_module, mock_grid):
+    """Tests the Module constructor for a root module."""
     assert root_module.parent is None
-    assert root_module.grid is not None
-    assert isinstance(root_module.grid, dg.SubGrid)
+    assert root_module.grid is mock_grid
     assert root_module.paused is False
     assert root_module.shape == mock_grid.shape
 
